@@ -13,3 +13,6 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+
+/// 맵 파일 헤더파일
+#include "MapFile.h"

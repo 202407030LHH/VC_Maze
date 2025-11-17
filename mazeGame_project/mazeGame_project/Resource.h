@@ -16,6 +16,14 @@
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1
 #endif
+
+
+/// 맵 관련 매크로 상수 정의
+#define MAZE_ROWS 20
+#define MAZE_COLS 20
+#define MAZE_BOX_SIZE 30
+
+
 // 다음은 새 개체에 사용할 기본값입니다.
 //
 #ifdef APSTUDIO_INVOKED
