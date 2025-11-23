@@ -4,6 +4,9 @@
 #include "framework.h"
 #include "mazeGame_project.h"
 
+/// 추가된 헤더파일
+#include <time.h>
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -118,6 +121,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 RECT g_me;
 BOOL g_maze_TF[MAZE_ROWS][MAZE_COLS];
 
+/// 아이템 선언 및 아이템 위치 생성
+RECT g_item;
+
+
 /// x와 y좌표 전역변수화
 int g_me_x, g_me_y;
 
@@ -145,7 +152,7 @@ int g_maze[MAZE_ROWS][MAZE_COLS] = {
 	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }, // Row 8
 	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 }, // Row 9
 	{ 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0 }, // Row 10
-	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0 }, // Row 11
+	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1, 1, 1, 0, 1, 0, 1, 0 }, // Row 11
 	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0 }, // Row 12
 	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0 }, // Row 13
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0 }, // Row 14
@@ -181,6 +188,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_me = { 0,0,MAZE_BOX_SIZE,MAZE_BOX_SIZE };
 		g_me_x = MAZE_ROWS-1;
 		g_me_y = MAZE_COLS - 1;
+
+		g_item = { 0,0,MAZE_BOX_SIZE,MAZE_BOX_SIZE };
+		/// 아이템 위치 생성을 위한 시간값 초기화
+		srand(time(NULL));
+
+		/// 아이템 위치 하드코딩
+		
 	}
 	break;
 
@@ -241,7 +255,29 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 		}
 		/// WM_PAINT를 호출
-		InvalidateRect(hWnd, NULL, FALSE);
+		InvalidateRect(hWnd, NULL, TRUE);
+		/// 내 캐릭터와 아이템이 겹쳤는지 확인
+		RECT checkRct;
+		if (IntersectRect(&checkRct, &g_me, &g_item))
+		{
+			/// 아이템 위치를 만들기 위해 좌표값 저장
+			int ramdomSeedX = rand() % MAZE_ROWS;
+			int ramdomSeedY = rand() % MAZE_COLS;
+
+			/// [ ! ] 원하는 대로 작동은 하나 현재 이동할때마다 InvaldateRect가 사용되서 모든 공간에서 생성함.
+			/// 반복문 이전에 아이템의 위치를 생성하였음.
+			while (g_maze[ramdomSeedX][ramdomSeedY] == 0)
+			{
+				ramdomSeedX = rand() % MAZE_ROWS;
+				ramdomSeedY = rand() % MAZE_COLS;
+			}
+			/// 생성이 완료됨을 확인하기 위해 1-> 4로 변경
+			/// [ ! ] 해결 X, 현재 문제, 렉트가 겹쳐져도 현상 유지. 해결해야함.
+			g_item = { ramdomSeedX,ramdomSeedY,ramdomSeedX + MAZE_BOX_SIZE,ramdomSeedY + MAZE_BOX_SIZE };
+			g_maze[ramdomSeedX][ramdomSeedY] = 4;
+		}
+
+		
 	}
 	break;
 	case WM_COMMAND:
@@ -263,12 +299,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 	case WM_PAINT:
 	{
+		/// 현재 생긴 이슈
+		/// 캐릭터가 이동했을때 잔상이 생김
+
+
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
 		// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
 		HBRUSH WallBrush = CreateSolidBrush(RGB(0, 0, 0));
 		HBRUSH RordBrush = CreateSolidBrush(RGB(255, 255, 255));;
+		HBRUSH ItemBrush = CreateSolidBrush(RGB(105, 5, 35));;
+
+		HPEN NullPen = CreatePen(PS_NULL, 0, RGB(0, 0, 0));
+		HPEN OsPen = (HPEN)SelectObject(hdc, NullPen);
 		HBRUSH CurrentBrush;
+		
+		/// 캐릭터 생성을 위한 지역 변수 선언 
+		
+		
 
 		/// 맵을 생성하기 위한 코드
 		for (int i = 0; i < MAZE_ROWS; i++)
@@ -280,21 +328,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				int y = i * MAZE_BOX_SIZE;
 
 				/// 브러쉬 선택 
-				if (g_maze[i][j] == 0) CurrentBrush = WallBrush;
-				else CurrentBrush = RordBrush;
+				if (g_maze[i][j] == 0)					/// 벽 일경우
+				{
+					SelectObject(hdc, OsPen);
+					CurrentBrush = WallBrush;
+				}
+				else if (g_maze[i][j] == 4)				/// 아이템 일경우
+				{
+					SelectObject(hdc, OsPen);
+					CurrentBrush = ItemBrush;
+					SelectObject(hdc, CurrentBrush);
+				}
+				else {									/// 일반 길일경우
+					SelectObject(hdc, NullPen);
+					CurrentBrush = RordBrush;
+				}
 
 				SelectObject(hdc, CurrentBrush);
 				Rectangle(hdc, x, y, x + MAZE_BOX_SIZE, y + MAZE_BOX_SIZE);
 
 				if (g_maze[i][j] == 3) {
 					SelectObject(hdc, RordBrush);
+					SelectObject(hdc, OsPen);
 					Ellipse(hdc, g_me.left + x, g_me.top + x, g_me.right + x, g_me.bottom + x);
 				}
 			}
 		}
+
 		DeleteObject(WallBrush);
 		DeleteObject(RordBrush);
+		DeleteObject(ItemBrush);
 		DeleteObject(CurrentBrush);
+		DeleteObject(NullPen);
+		DeleteObject(OsPen);
 		EndPaint(hWnd, &ps);
 	}
 	break;
