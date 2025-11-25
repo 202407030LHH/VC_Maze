@@ -283,7 +283,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				g_dest_set = TRUE;
 			}
-			if (g_dest_set && g_dest_setClear == FALSE)				/// 도착지점 활성화 된 경우 setClear로 생성이 불가능하게 막아둠.
+			if (g_dest_set && g_dest_setClear == FALSE)				/// 도착지점 활성화 된 경우 setClear로 생성이 불가능하게 막아둠.  -> 크리에이트에서 생성해두고 조건 달성 시 오픈. 이미 무작위이기 때문에 플레이어는 무작위로 생성되었다고 느낄듯
 			{
 				while (g_maze[destX][destY] == 1)
 				{
@@ -364,12 +364,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				int y = i * MAZE_BOX_SIZE;
 
 				/// 브러쉬 선택 
-				if (g_maze[i][j] == 0)					/// 벽 일경우
+				if (g_maze[i][j] == 0)										/// 벽 일경우
 				{
 					SelectObject(hdc, OsPen);
 					CurrentBrush = WallBrush;
 				}
-				else if (g_maze[i][j] == 4)				/// 아이템 일경우
+				else if (g_maze[i][j] == 4)									/// 아이템 일경우
 				{
 					SelectObject(hdc, OsPen);
 					CurrentBrush = ItemBrush;
@@ -379,7 +379,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					SelectObject(hdc, NullPen);
 					CurrentBrush = RordBrush;
 				}
-				else if (g_maze[i][j] == 5)						/// 5: 도착점
+				else if (g_maze[i][j] == 5)									/// 5: 도착점
 				{
 					SelectObject(hdc, NullPen);
 					CurrentBrush = DestBrush;
