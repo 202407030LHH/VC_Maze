@@ -18,6 +18,22 @@
 #define IDM_GAMESTOP                    32773
 #define IDC_STATIC                      -1
 
+/// 맵 생성을 위한 매크로 상수
+#define MAZE_ROWS 28
+#define MAZE_COLS 23
+#define MAZE_BOX_SIZE 30
+
+
+/// 게임 진행 시 스코어의 값을 변경하면 됨
+#define TARGET_SCORE 1
+
+/// 길이나 벽 표현을 위한 상수 정의
+#define WALL  0   // 벽 (검정)
+#define ROAD  1   // 길 (흰색)
+#define START  3  // 시작점
+#define ITEM  4   // 아이템
+#define DEST  5   // 도착점
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

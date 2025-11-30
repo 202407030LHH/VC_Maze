@@ -113,11 +113,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	return TRUE;
 }
-#define MAZE_ROWS 20
-#define MAZE_COLS 20
-#define MAZE_BOX_SIZE 30
-/// 게임 진행 시 스코어의 값을 변경하면 됨
-#define TARGET_SCORE 1
 
 /// g_me = 캐릭터, g_maze_TF = 벽인지 아닌지 여부 확인
 RECT g_me;
@@ -140,31 +135,7 @@ RECT g_dest;
 BOOL g_dest_set;
 BOOL g_dest_setClear;
 
-/// 0 : 벽/검정색 , 1 : 길/흰색, 3 : 출발, 4 : 아이템, 5 : 도착지점
-/// 맵 크기 키워서 테스트
-int g_maze[MAZE_ROWS][MAZE_COLS] = {
-	// 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Row 0 (End)
-	{ 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 }, // Row 1
-	{ 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }, // Row 2
-	{ 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 }, // Row 3
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0 }, // Row 4
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0 }, // Row 5
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0 }, // Row 6
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0 }, // Row 7
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }, // Row 8
-	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 }, // Row 9
-	{ 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0 }, // Row 10
-	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0 }, // Row 11
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0 }, // Row 12
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0 }, // Row 13
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0 }, // Row 14
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0 }, // Row 15
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Row 16
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 1 }, // Row 17
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }, // Row 18
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3 }  // Row 19 (Start)
-};
+
 
 // 우선 순위 과제
 // 벽에 닿았을 때 움직이지 않게 하기
@@ -183,26 +154,22 @@ int g_maze[MAZE_ROWS][MAZE_COLS] = {
 //
 //
 
+Map g_maze_area;
+int maze_map[MAZE_ROWS][MAZE_COLS];
+Object g_object;
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
 	case WM_CREATE:
 	{
-		g_me = { 0,0,MAZE_BOX_SIZE,MAZE_BOX_SIZE };
-		g_me_x = MAZE_ROWS - 1;
-		g_me_y = MAZE_COLS - 1;
-		
-		/// 첫 위치는 하드코딩으로 만들기 때문에 고정값 할당
-		g_item_rows = 17;
-		g_item_cols = 18;
-		
-		/// 아이템 위치 생성을 위한 시간값 초기화
-		srand(time(NULL));
-
+		/// 테스트
+		g_maze_area.SetMap();
+		g_object.SetItem();
 		/// 획득 점수 초기화
 		g_item_score = 0;
-		
+
 		/// 랜덤한 위치에 생성할 예정이기 때문에 0으로 초기화
 		g_dest = { 0, };
 
@@ -211,67 +178,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_dest_setClear = FALSE;
 	}
 	break;
-
+	case WM_KEYDOWN:
+	{
+		g_object.SetPlayer(wParam,hWnd);
+	}
 	/// 구현 로직
 	/// 이동할 좌표의 값을 임시변수 nx, ny에 할당
 	/// 키보드의 값을 입력 받을 경우, 이동할 칸에 할당된 변수의 값(0,1)을 비교
 	/// 길이라면 이동 후, 임시변수의 값을 변경.
 	/// 로직 제작 시 오래 걸린 이유
 	/// 칸에 할당된 변수와 캐릭터의 값을 비교하는 로직을 작성하지 못함
-	/// x,y 좌표 이해를 잘 하지 못했음.
-
-	case WM_KEYDOWN:
-	{
-		int nx = g_me_x;
-		int ny = g_me_y;
-		if (wParam == VK_LEFT)
-		{
-			ny--;
-			if (ny >= 0)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.left -= MAZE_BOX_SIZE;
-				g_me.right -= MAZE_BOX_SIZE;
-				g_me_y = ny;
-			}
-		}
-		else if (wParam == VK_RIGHT)
-		{
-			ny++;
-			if (ny <= MAZE_COLS - 1)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.right += MAZE_BOX_SIZE;
-				g_me.left += MAZE_BOX_SIZE;
-				g_me_y = ny;
-			}
-		}
-		else if (wParam == VK_UP)
-		{
-			nx--;
-			if (nx >= 0)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.top -= MAZE_BOX_SIZE;
-				g_me.bottom -= MAZE_BOX_SIZE;
-				g_me_x = nx;
-			}
-		}
-		else if (wParam == VK_DOWN)
-		{
-			nx++;
-			if (nx <= MAZE_ROWS - 1)
-			{
-				if (g_maze[nx][ny] == 0)break;
-				g_me.top += MAZE_BOX_SIZE;
-				g_me.bottom += MAZE_BOX_SIZE;
-				g_me_x = nx;
-			}
-		}
-		
+	/// x,y
+	/// 좌표 이해를 잘 하지 못했음.
+	
 
 		/// 내 캐릭터와 아이템이 겹쳤는지 확인
 		/// 해결 못하고 그냥 렉트의 좌표값을 비교
+		/*
 		if (nx == g_item_rows && ny == g_item_cols)
 		{
 			g_item_score++;
@@ -292,7 +215,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				}
 				g_maze[destX][destY] = 5;
 				g_dest_setClear = TRUE;
-			}		
+			}
 			/// 아이템 위치를 만들기 위해 좌표값 저장
 			int newItemX = rand() % MAZE_ROWS;
 			int newItemY = rand() % MAZE_COLS;
@@ -310,7 +233,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			/// 생성이 완료됨을 확인하기 위해 1-> 4로 변경
 			/// [ ! ] 해결 X, 현재 문제, 렉트가 겹쳐져도 현상 유지. 해결해야함.
-			
+
 			g_maze[g_me_x][g_me_y] = 1; // 플레이어가 서 있는 곳을 길로 되돌리고
 			g_maze[g_item_rows][g_item_cols] = 4;
 
@@ -319,6 +242,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd, NULL, TRUE);
 	}
 	break;
+		*/
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -338,82 +262,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 	case WM_PAINT:
 	{
-		/// 현재 생긴 이슈
-		/// 캐릭터가 이동했을때 잔상이 생김
-
+		/// 미로 선언
 
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
 		// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-		HBRUSH WallBrush = CreateSolidBrush(RGB(0, 0, 0));
-		HBRUSH RordBrush = CreateSolidBrush(RGB(255, 255, 255));
-		HBRUSH ItemBrush = CreateSolidBrush(RGB(105, 5, 35));
-		HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105,215));
 
-		HPEN NullPen = CreatePen(PS_NULL, 0, RGB(0, 0, 0));
-		HPEN OsPen = (HPEN)SelectObject(hdc, NullPen);
-		HBRUSH CurrentBrush = WallBrush; 
-
-		/// 맵을 생성하기 위한 코드
-		for (int i = 0; i < MAZE_ROWS; i++)
-		{
-			for (int j = 0; j < MAZE_COLS; j++)
-			{
-				/// 왜 이렇게 되는지는 다시 이해해야함.
-				int x = j * MAZE_BOX_SIZE;
-				int y = i * MAZE_BOX_SIZE;
-
-				/// 브러쉬 선택 
-				if (g_maze[i][j] == 0)										/// 벽 일경우
-				{
-					SelectObject(hdc, OsPen);
-					CurrentBrush = WallBrush;
-				}
-				else if (g_maze[i][j] == 4)									/// 아이템 일경우
-				{
-					SelectObject(hdc, OsPen);
-					CurrentBrush = ItemBrush;
-					SelectObject(hdc, CurrentBrush);
-				}
-				else if(g_maze[i][j] == 1){									/// 일반 길일경우 
-					SelectObject(hdc, NullPen);
-					CurrentBrush = RordBrush;
-				}
-				else if (g_maze[i][j] == 5)									/// 5: 도착점
-				{
-					SelectObject(hdc, NullPen);
-					CurrentBrush = DestBrush;
-				}
-
-				/// 선택된 브러쉬로 그리기
-				SelectObject(hdc, CurrentBrush);
-				Rectangle(hdc, x, y, x + MAZE_BOX_SIZE, y + MAZE_BOX_SIZE);
-
-				if (g_maze[i][j] == 3) {
-					SelectObject(hdc, RordBrush);
-					SelectObject(hdc, OsPen);
-					Ellipse(hdc, g_me.left + x, g_me.top + x, g_me.right + x, g_me.bottom + x);
-				}
-			}
-		}
-
-		/// 기존 오브젝트로 변환
-		SelectObject(hdc, OsPen);
-		SelectObject(hdc, WallBrush);
-
+		g_maze_area.GetMap(hdc);
+		g_object.DrawPlayer(hdc);
+		g_object.GetItem(hdc);
 		/// 아이템을 먹을 시 점수 증가 및 출력 텍스트	
 		WCHAR scoreText[30];
 		wsprintfW(scoreText, L"획득한 점수 : %d", g_item_score);
 		TextOut(hdc, 750, 30, scoreText, wcslen(scoreText));
-		
+
 		/// 만든 오브젝트 삭제
-		DeleteObject(WallBrush);
-		DeleteObject(RordBrush);
-		DeleteObject(ItemBrush);
-		DeleteObject(CurrentBrush);
-		DeleteObject(DestBrush);
-		DeleteObject(NullPen);
-		DeleteObject(OsPen);
 		EndPaint(hWnd, &ps);
 	}
 	break;

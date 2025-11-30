@@ -13,3 +13,7 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+
+/// 파일 생성 헤더파일
+#include "Map.h"
+#include "Object.h"
