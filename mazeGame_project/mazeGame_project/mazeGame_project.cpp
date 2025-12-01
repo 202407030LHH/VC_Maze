@@ -4,6 +4,8 @@
 #include "framework.h"
 #include "mazeGame_project.h"
 
+#include "time.h"
+
 #define MAX_LOADSTRING 100
 
 // 전역 변수:
@@ -75,7 +77,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	wcex.hInstance = hInstance;
 	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAZEGAMEPROJECT));
 	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	//wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1 );
+	wcex.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
 	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_MAZEGAMEPROJECT);
 	wcex.lpszClassName = szWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
@@ -110,52 +113,30 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 	return TRUE;
 }
-#define MAZE_ROWS 20
-#define MAZE_COLS 20
+#define MAZE_ROWS 31
+#define MAZE_COLS 25
 #define MAZE_BOX_SIZE 30
 
+#define WALL 0
+#define ROAD 1
+#define CHAR 2
+#define ITEM 3
+#define DEST 4
 /// g_me = 캐릭터, g_maze_TF = 벽인지 아닌지 여부 확인
 RECT g_me;
-BOOL g_maze_TF[MAZE_ROWS][MAZE_COLS];
 
 /// x와 y좌표 전역변수화
 int g_me_x, g_me_y;
 
-/// 0 : 벽/검정색 , 1 : 길/흰색
-//int g_maze[MAZE_ROWS][MAZE_COLS] = {
-//	//   0  1  2  3  4  (Col Index)
-//	{  1, 1, 1, 1, 1 }, // Row 0 (도착지: [0][0])
-//	{  0, 0, 0, 0, 1 }, // Row 1
-//	{  0, 0, 1, 0, 1 }, // Row 2
-//	{  0, 1, 1, 0, 1 }, // Row 3
-//	{  0, 0, 0, 1, 3 }  // Row 4 (출발지: [4][4])
-//};
+/// 아이템의 좌표
+int g_itemRow, g_itemCol;
+int g_newItemRow, g_newItemCol;
+int g_itemScore;
 
 /// 맵 크기 키워서 테스트
-int g_maze[MAZE_ROWS][MAZE_COLS] = {
-	// 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19
-	{ 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Row 0 (End)
-	{ 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0 }, // Row 1
-	{ 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }, // Row 2
-	{ 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 }, // Row 3
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0 }, // Row 4
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0 }, // Row 5
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0 }, // Row 6
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0 }, // Row 7
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }, // Row 8
-	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0 }, // Row 9
-	{ 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0 }, // Row 10
-	{ 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0 }, // Row 11
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0 }, // Row 12
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0 }, // Row 13
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0 }, // Row 14
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0 }, // Row 15
-	{ 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, // Row 16
-	{ 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }, // Row 17
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 }, // Row 18
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3 }  // Row 19 (Start)
-};
+int g_maze[MAZE_ROWS][MAZE_COLS];
 
+int width, height;
 // 우선 순위 과제
 // 벽에 닿았을 때 움직이지 않게 하기
 // 현재 생각중인 방법 
@@ -172,15 +153,171 @@ int g_maze[MAZE_ROWS][MAZE_COLS] = {
 //  WM_DESTROY  - 종료 메시지를 게시하고 반환합니다.
 //
 //
+void SetMap()
+{
+	srand(time(NULL));
+	width = MAZE_ROWS;
+	height = MAZE_COLS;
+
+	int destX = rand() % MAZE_ROWS;
+	int destY = rand() % MAZE_COLS;
+
+	int nextItemRow = g_newItemRow;
+	int nextItemCol = g_newItemCol;
+
+	while (g_maze[nextItemRow][nextItemCol] == WALL)
+	{
+		nextItemRow = rand() % MAZE_ROWS;
+		nextItemCol = rand() % MAZE_COLS;
+	}
+
+	g_maze[nextItemRow][nextItemCol] = ITEM;
+
+	g_newItemRow = nextItemRow;
+	g_newItemCol = nextItemCol;
+
+	/// 모든 구역을 길로 초기화
+	for (int i = 0; i < width ;i++)
+	{
+		for (int j = 0; j < height; j++)
+		{
+			g_maze[i][j] = ROAD;
+		}
+	}
+
+	/// 상단, 오른쪽 벽면 테두리 만드는 코드
+	for (int i = 0; i < width; i++)
+	{
+		/// height -1을 해야만 맨 마지막 칸을 WALL 선언할 수 있음.
+		g_maze[i][0] = WALL;
+		g_maze[i][height - 1] = WALL;
+	}
+
+	/// 하단, 왼쪽 벽면 테두리 만드는 코드
+	for (int i = 0; i < height; i++)
+	{
+		/// width -1을 해야만 맨 마지막 칸을 WALL 선언할 수 있음.
+		g_maze[0][i] = WALL;
+		g_maze[width - 1][i] = WALL;
+	}
+
+	/// 랜덤한 위치의 벽을 만드는 코드
+	for (int i = 2; i < width - 2; i += 2)
+	{
+		for (int j = 2; j < height - 2; j += 2)
+		{
+			g_maze[i][j] = WALL; // 격자 지점에 벽 생성
+
+			// 상하좌우 중 랜덤하게 한 방향으로 벽 연장
+			int direction = rand() % 4;
+			switch (direction)
+			{
+			case 0: if (j > 2) g_maze[i][j - 1] = WALL; break;				// 상
+			case 1: if (j < height - 3) g_maze[i][j + 1] = WALL; break;		// 하
+			case 2: if (i > 2) g_maze[i - 1][j] = WALL; break;				// 좌
+			case 3: if (i < width - 3) g_maze[i + 1][j] = WALL; break;		// 우
+			}
+		}
+	}
+	/// 출발지는 고정
+	g_maze[1][1] = CHAR;
+
+	/// 도착지는 랜덤
+	while (g_maze[destX][destY] == WALL)
+	{
+		destX = rand() % MAZE_ROWS;
+		destY = rand() % MAZE_COLS;
+	}
+
+}
+
+void GetMap(HDC Whdc)
+{
+	// 1. GDI 객체 생성 (한 번만)
+	HBRUSH WallBrush = CreateSolidBrush(RGB(180,180,180));      // 검정색 (벽)
+	HBRUSH RordBrush = CreateSolidBrush(RGB(40,40,40)); // 흰색 (길)
+	HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105, 215));  // 도착점
+	HBRUSH ItemBrush = CreateSolidBrush(RGB(255, 215, 0));   // 아이템: 금색
+	HBRUSH CharBrush = CreateSolidBrush(RGB(0, 255, 0));     // 캐릭터: 형광 연두색
+
+	// 펜을 NULL_PEN으로 설정하고 나중에 원래 펜 복원 (외곽선 제거)
+	HPEN NullPen = CreatePen(PS_NULL, 0, RGB(0, 0, 0));
+	HPEN hOldPen = (HPEN)SelectObject(Whdc, NullPen);
+
+	HBRUSH CurrentBrush;
+	HBRUSH hOldBrush = (HBRUSH)SelectObject(Whdc, RordBrush); // 흰색으로 초기 브러시 설정
+
+	for (int row = 0; row < MAZE_COLS; row++) // 세로 줄 수
+	{
+		for (int col = 0; col < MAZE_ROWS; col++) // 가로 칸 수
+		{
+			int x = col * MAZE_BOX_SIZE;
+			int y = row * MAZE_BOX_SIZE;
+
+			// [수정] g_maze[행][열] 접근
+			if (g_maze[row][col] == WALL) CurrentBrush = WallBrush;
+			else if (g_maze[row][col] == DEST) CurrentBrush = DestBrush;
+			else if (g_maze[row][col] == CHAR) CurrentBrush = CharBrush;
+			else if (g_maze[row][col] == ITEM) CurrentBrush = ItemBrush;
+			else CurrentBrush = RordBrush;
+
+			SelectObject(Whdc, CurrentBrush);
+			Rectangle(Whdc, x, y, x + MAZE_BOX_SIZE, y + MAZE_BOX_SIZE);
+		}
+	}
+	// 원래 펜과 브러쉬로 복구
+	SelectObject(Whdc, hOldBrush);
+	SelectObject(Whdc, hOldPen);
+
+	// 만든 오브젝트 삭제
+	DeleteObject(WallBrush);
+	DeleteObject(RordBrush);
+	DeleteObject(DestBrush);
+	DeleteObject(ItemBrush);
+	DeleteObject(CharBrush);
+	DeleteObject(NullPen);
+}
+
+void SetItem()
+{
+	int nextItemRow = g_newItemRow;
+	int nextItemCol = g_newItemCol;
+	while (g_maze[nextItemRow][nextItemCol] == WALL)
+	{
+		nextItemRow = rand() % MAZE_ROWS;
+		nextItemCol = rand() % MAZE_COLS;
+	}
+
+	g_maze[nextItemRow][nextItemCol] = ITEM;
+
+	g_newItemRow = nextItemRow;
+	g_newItemCol = nextItemCol;
+
+}
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
 	case WM_CREATE:
 	{
-		g_me = { 0,0,MAZE_BOX_SIZE,MAZE_BOX_SIZE };
-		g_me_x = MAZE_ROWS-1;
-		g_me_y = MAZE_COLS - 1;
+		SetMap();
+		/// 아이템의 위치 찾기
+		for (int i = 0; i < MAZE_ROWS; i++)
+		{
+			for (int j = 0; j < MAZE_COLS; j++)
+			{
+				if (g_maze[i][j] == CHAR)
+				{
+					g_me_x = i;
+					g_me_y = j;
+
+					g_me.left = g_me_x * MAZE_BOX_SIZE;
+					g_me.top = g_me_y * MAZE_BOX_SIZE;
+					g_me.right = g_me.left + MAZE_BOX_SIZE;
+					g_me.bottom = g_me.top + MAZE_BOX_SIZE;
+				}
+			}
+		}
 	}
 	break;
 
@@ -191,59 +328,76 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	/// 로직 제작 시 오래 걸린 이유
 	/// 칸에 할당된 변수와 캐릭터의 값을 비교하는 로직을 작성하지 못함
 	/// x,y 좌표 이해를 잘 하지 못했음.
-	
+
+
 	case WM_KEYDOWN:
 	{
-		int nx = g_me_x;
-		int ny = g_me_y;
+		// 1. 임시 변수에 현재 위치 저장
+		int nx = g_me_x; // 행 (Row)
+		int ny = g_me_y; // 열 (Col)
+
+		// 2. 키 입력에 따른 '예상' 위치 계산
 		if (wParam == VK_LEFT)
 		{
 			ny--;
-			if (ny >= 0)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.left -= MAZE_BOX_SIZE;
-				g_me.right -= MAZE_BOX_SIZE;
-				g_me_y = ny;
-			}
 		}
 		else if (wParam == VK_RIGHT)
 		{
 			ny++;
-			if (ny <= MAZE_COLS - 1)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.right += MAZE_BOX_SIZE;
-				g_me.left += MAZE_BOX_SIZE;
-				g_me_y = ny;
-			}
 		}
 		else if (wParam == VK_UP)
 		{
 			nx--;
-			if (nx >= 0)
-			{
-				if (g_maze[nx][ny] == 0) break;
-				g_me.top -= MAZE_BOX_SIZE;
-				g_me.bottom -= MAZE_BOX_SIZE;
-				g_me_x = nx;
-			}
 		}
 		else if (wParam == VK_DOWN)
 		{
 			nx++;
-			if (nx <= MAZE_ROWS - 1)
-			{
-				if (g_maze[nx][ny] == 0)break;
-				g_me.top += MAZE_BOX_SIZE;
-				g_me.bottom += MAZE_BOX_SIZE;
-				g_me_x = nx;
-			}
 		}
-		/// WM_PAINT를 호출
-		InvalidateRect(hWnd, NULL, FALSE);
+
+		// 3. 통합 경계 및 충돌 검사
+		// (범위를 벗어나지 않고, 벽이 아닌 경우에만 이동 수행)
+		if (nx >= 0 && nx < MAZE_ROWS && ny >= 0 && ny < MAZE_COLS && g_maze[nx][ny] != WALL)
+		{
+			bool isItem = (g_maze[nx][ny] == ITEM);
+
+			// 4. 이동이 확정되었을 때만 데이터 갱신
+			g_maze[g_me_x][g_me_y] = ROAD; // 기존 위치 지우기
+
+			// 좌표 및 인덱스 업데이트
+			g_me_x = nx;
+			g_me_y = ny;
+
+			// 픽셀 좌표 재계산 (이게 더 안전함)
+			g_me.left = g_me_y * MAZE_BOX_SIZE;
+			g_me.top = g_me_x * MAZE_BOX_SIZE;
+			g_me.right = g_me.left + MAZE_BOX_SIZE;
+			g_me.bottom = g_me.top + MAZE_BOX_SIZE;
+
+			g_maze[g_me_x][g_me_y] = CHAR; // 새 위치에 캐릭터 표시
+
+			if (isItem)
+			{
+				int nextItemRow;
+				int nextItemCol;
+				
+				do
+				{
+					nextItemRow = rand() % MAZE_ROWS;
+					nextItemCol = rand() % MAZE_COLS;
+				} while (g_maze[nextItemRow][nextItemCol] != ROAD);
+
+				g_maze[nextItemRow][nextItemCol] = ITEM;
+
+				g_itemRow = nextItemRow;
+				g_itemCol = nextItemCol;
+
+				g_itemScore++;
+			}
+				// 화면 갱신 요청
+				InvalidateRect(hWnd, NULL, TRUE);
+		}
 	}
-	break;
+		break;
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -264,38 +418,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_PAINT:
 	{
 		PAINTSTRUCT ps;
-		HDC hdc = BeginPaint(hWnd, &ps);
-		// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-		HBRUSH WallBrush = CreateSolidBrush(RGB(0, 0, 0));
-		HBRUSH RordBrush = CreateSolidBrush(RGB(255, 255, 255));;
-		HBRUSH CurrentBrush;
+		HDC hdc = BeginPaint(hWnd, &ps); // [중요] GetDC 대신 BeginPaint 사용
 
-		/// 맵을 생성하기 위한 코드
-		for (int i = 0; i < MAZE_ROWS; i++)
-		{
-			for (int j = 0; j < MAZE_COLS; j++)
-			{
-				/// 왜 이렇게 되는지는 다시 이해해야함.
-				int x = j * MAZE_BOX_SIZE;
-				int y = i * MAZE_BOX_SIZE;
+		// 맵 그리기 (GetMap 함수 내부 로직이 올바르다면 호출만으로 충분)
+		GetMap(hdc);
 
-				/// 브러쉬 선택 
-				if (g_maze[i][j] == 0) CurrentBrush = WallBrush;
-				else CurrentBrush = RordBrush;
+		// 텍스트 출력
+		SetTextColor(hdc, RGB(255, 255, 255));
+		SetBkMode(hdc, TRANSPARENT);
+		WCHAR scoreText[30];
+		wsprintfW(scoreText, L"Get Item : %d", g_itemScore);
+		TextOut(hdc, 750, 30, scoreText, wcslen(scoreText));
 
-				SelectObject(hdc, CurrentBrush);
-				Rectangle(hdc, x, y, x + MAZE_BOX_SIZE, y + MAZE_BOX_SIZE);
-
-				if (g_maze[i][j] == 3) {
-					SelectObject(hdc, RordBrush);
-					Ellipse(hdc, g_me.left + x, g_me.top + x, g_me.right + x, g_me.bottom + x);
-				}
-			}
-		}
-		DeleteObject(WallBrush);
-		DeleteObject(RordBrush);
-		DeleteObject(CurrentBrush);
-		EndPaint(hWnd, &ps);
+		EndPaint(hWnd, &ps); // [중요] EndPaint 필수
 	}
 	break;
 	case WM_DESTROY:
@@ -305,24 +440,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
-}
-
-// 정보 대화 상자의 메시지 처리기입니다.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	UNREFERENCED_PARAMETER(lParam);
-	switch (message)
-	{
-	case WM_INITDIALOG:
-		return (INT_PTR)TRUE;
-
-	case WM_COMMAND:
-		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-		{
-			EndDialog(hDlg, LOWORD(wParam));
-			return (INT_PTR)TRUE;
-		}
-		break;
 	}
-	return (INT_PTR)FALSE;
-}
+
+	// 정보 대화 상자의 메시지 처리기입니다.
+	INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		UNREFERENCED_PARAMETER(lParam);
+		switch (message)
+		{
+		case WM_INITDIALOG:
+			return (INT_PTR)TRUE;
+
+		case WM_COMMAND:
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+			{
+				EndDialog(hDlg, LOWORD(wParam));
+				return (INT_PTR)TRUE;
+			}
+			break;
+		}
+		return (INT_PTR)FALSE;
+	}
