@@ -123,7 +123,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 #define ITEM 3
 #define DEST 4
 
-#define TARGET_SCORE 5
+#define TARGET_SCORE 1
 
 /// g_me = 캐릭터, g_maze_TF = 벽인지 아닌지 여부 확인
 RECT g_me;
@@ -134,7 +134,7 @@ int g_me_x, g_me_y;
 /// 아이템의 좌표
 int g_itemRow, g_itemCol;
 int g_newItemRow, g_newItemCol;
-volatile int g_itemScore;
+int g_itemScore;
 
 /// 맵 크기 키워서 테스트
 int g_maze[MAZE_ROWS][MAZE_COLS];
@@ -142,8 +142,10 @@ int g_maze[MAZE_ROWS][MAZE_COLS];
 int g_destX, g_destY;
 BOOL g_isDest;
 BOOL g_destClear;
+BOOL g_openDest;
 
 HWND g_hWnd;
+BOOL g_maze_clear;
 // 우선 순위 과제
 // 벽에 닿았을 때 움직이지 않게 하기
 // 현재 생각중인 방법 
@@ -205,6 +207,8 @@ void GetMap()
 	DeleteObject(CharBrush);
 	DeleteObject(NullPen);
 	ReleaseDC(g_hWnd, hdc);
+
+	g_maze_clear = TRUE;
 }
 void SetMap()
 {
@@ -254,6 +258,14 @@ void SetMap()
 		g_maze[MAZE_ROWS - 1][i] = WALL;
 	}
 
+	/// 랜덤으로 벽 뚫기
+	for (int i = 0; i < MAZE_ROWS; i++)
+	{
+		int x = (rand() % (MAZE_ROWS - 2)) + 1;
+		int y = (rand() % (MAZE_COLS - 2)) + 1;
+		g_maze[x][y] = ROAD;
+	}
+
 	g_maze[1][1] = CHAR;
 
 	/// 아이템 설정
@@ -297,7 +309,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 
 	int nx = g_me_x;
 	int ny = g_me_y;
-
+	int itemScore = g_itemScore;
 	/// 캐릭터 구성
 	HBRUSH CharBrush = CreateSolidBrush(RGB(0, 255, 0));     // 캐릭터: 형광 연두색
 	HBRUSH RoadBrush = CreateSolidBrush(RGB(40, 40, 40)); // 흰색 (길)
@@ -314,6 +326,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 	if (g_maze[nx][ny] != WALL)
 	{
 		bool isItem = (g_maze[nx][ny] == ITEM);
+		bool isDest = (g_maze[nx][ny] == DEST);
 
 		g_maze[g_me_x][g_me_y] = ROAD; // 기존 위치 지우기
 
@@ -359,11 +372,12 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 			g_itemCol = nextItemCol;
 
 			g_itemScore++;
+			InvalidateRect(hWnd, NULL, FALSE);
 		}
 
 		/// 도착지 활성화
-		if (g_itemScore >= TARGET_SCORE) { g_isDest = TRUE; }
-		if (g_isDest && g_destClear == FALSE)
+		if (g_itemScore >= TARGET_SCORE) { g_openDest = TRUE; }
+		if (g_openDest && g_destClear == FALSE)
 		{
 			HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105, 215));  // 도착점
 			SelectObject(hdc, DestBrush);
@@ -372,81 +386,33 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 			g_destX = rand() % MAZE_ROWS;
 			g_destY = rand() % MAZE_COLS;
 
-			int destX = g_destX * MAZE_BOX_SIZE;
-			int destY = g_destY * MAZE_BOX_SIZE;
 			while (g_maze[g_destX][g_destY] == WALL)
 			{
 				g_destX = rand() % MAZE_ROWS;
 				g_destY = rand() % MAZE_COLS;
 			}
 			g_maze[g_destX][g_destY] = DEST;
+			int destX = g_destX * MAZE_BOX_SIZE;
+			int destY = g_destY * MAZE_BOX_SIZE;
 			Rectangle(hdc, destX, destY, destX + MAZE_BOX_SIZE, destY + MAZE_BOX_SIZE);
 			g_destClear = TRUE;
+		DeleteObject(DestBrush);
+		}
+
+		if (isDest)
+		{
+			WCHAR buffer[256];
+			wsprintfW(buffer, L" %d개를 획득하였습니다!", g_itemScore);
+			MessageBox(hWnd,buffer, L"게임 클리어!" ,MB_OK);
 		}
 		SelectObject(hdc, RoadBrush);
 		DeleteObject(CharBrush);
 		DeleteObject(RoadBrush);
 		DeleteObject(ItemBrush);
 	}
-	//InvalidateRect(hWnd, NULL, TRUE);
-	// ReleaseDC(ds->m_hWnd, hdc);
+	
+	ReleaseDC(hWnd, hdc);
 	return 0;
-}
-void MoveChar(WPARAM key)
-{
-	int nx = g_me_x;
-	int ny = g_me_y;
-	switch (key)
-	{
-	case VK_LEFT: nx--;
-	case VK_RIGHT: nx++;
-	case VK_UP: ny--;
-	case VK_DOWN: ny++;
-	}
-	// 3. 통합 경계 및 충돌 검사 (범위를 벗어나지 않고, 벽이 아닌 경우에만 이동 수행)
-	if (g_maze[nx][ny] != WALL)
-	{
-		bool isItem = (g_maze[nx][ny] == ITEM);
-		g_maze[g_me_x][g_me_y] = ROAD; // 기존 위치 지우기
-
-		// 4. 이동이 확정되었을 때만 데이터 갱신
-
-		// 좌표 및 인덱스 업데이트
-		g_me_x = nx;
-		g_me_y = ny;
-
-		// 픽셀 좌표 재계산 (이게 더 안전함)
-		g_me.left = g_me_x * MAZE_BOX_SIZE;
-		g_me.top = g_me_y * MAZE_BOX_SIZE;
-		g_me.right = g_me.left + MAZE_BOX_SIZE;
-		g_me.bottom = g_me.top + MAZE_BOX_SIZE;
-
-		g_maze[g_me_x][g_me_y] = CHAR; // 새 위치에 캐릭터 표시
-
-		if (isItem)
-		{
-			int nextItemRow;
-			int nextItemCol;
-
-			do
-			{
-				nextItemRow = rand() % MAZE_ROWS;
-				nextItemCol = rand() % MAZE_COLS;
-			} while (g_maze[nextItemRow][nextItemCol] != ROAD);
-
-			g_maze[nextItemRow][nextItemCol] = ITEM;
-
-			g_itemRow = nextItemRow;
-			g_itemCol = nextItemCol;
-
-			g_itemScore++;
-		}
-		/// 도착지 활성화
-		// 화면 갱신 요청
-		if (g_itemScore >= TARGET_SCORE) { g_isDest = TRUE; }
-	}
-	InvalidateRect(g_hWnd, NULL, TRUE);
-
 }
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -507,15 +473,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		HDC hdc = BeginPaint(hWnd, &ps);
 
 		// 맵 그리기 (GetMap 함수 내부 로직이 올바르다면 호출만으로 충분)
-		GetMap();
+		
+		if(!g_maze_clear) GetMap();
 
-		// 텍스트 출력
+		// 1. 글자가 출력될 위치 계산 (TextOut 좌표와 동일하게)
+		int textX = MAZE_ROWS * MAZE_BOX_SIZE;
+		int textY = 30;
+
+		// 2. 지울 영역(사각형) 설정 (글자 길이만큼 넉넉하게 잡음)
+		RECT textRect = { textX, textY, textX + 200, textY + 50 };
+
+		// 3. 검은색 브러시로 해당 영역을 칠해서 '지우개' 역할 수행
+		FillRect(hdc, &textRect, (HBRUSH)GetStockObject(BLACK_BRUSH));
+
 		SetTextColor(hdc, RGB(255, 255, 255));
 		SetBkMode(hdc, TRANSPARENT);
 
 		WCHAR scoreText[30];
 		wsprintfW(scoreText, L"Get Item : %d", g_itemScore);
-		TextOut(hdc, MAZE_ROWS*MAZE_BOX_SIZE, 30, scoreText, wcslen(scoreText));
+		TextOut(hdc, textX, textY, scoreText, wcslen(scoreText));
 
 		EndPaint(hWnd, &ps);
 	}
