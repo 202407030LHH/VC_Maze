@@ -118,6 +118,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 RECT g_me;
 
 /// x와 y좌표 전역변수화
+
 int g_me_x, g_me_y;
 
 /// 아이템의 좌표
@@ -136,10 +137,10 @@ BOOL g_openDest;
 HWND g_hWnd;
 BOOL g_maze_clear;
 
-#define START	 1
-#define STOP	 0
-#define CLEAR	 2
-#define OUT		 3
+#define START		 1
+#define STOP		 0
+#define CLEAR		 2
+#define TIMEOUT		3
 
 int g_isGame;
 
@@ -153,6 +154,13 @@ volatile int g_timerState = STOP; // 현재 타이머 상태 (volatile 필수)
 volatile int g_playTime = 0;            // 게임 시간 (초 단위)
 
 HANDLE g_hTimerThread;           // 타이머 쓰레드 핸들
+HANDLE g_hStartButton;
+HANDLE g_hResetButton;
+HANDLE g_hPurseButton;
+
+#define BT_GAMESTART			101
+#define BT_GAMERESET			102
+#define BT_GAMEPAUSE			103
 //
 //  함수: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -430,7 +438,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 		if (isDest)
 		{
 			g_timerState = CLEAR;
-
+			g_isGame = CLEAR;
 			WCHAR buffer[256];
 			wsprintfW(buffer, L" %d개를 획득하였습니다!", g_itemScore);
 			MessageBox(hWnd, buffer, L"게임 클리어!", MB_OK);
@@ -453,7 +461,43 @@ void GameText()
 	if (g_isGame == START) { wsprintfW(g_isGameText, L"현재 게임 상태 : 실행중"); }
 	else if (g_isGame == STOP) { wsprintfW(g_isGameText, L"현재 게임 상태 : 정지중"); }
 	else if (g_isGame == CLEAR) { wsprintfW(g_isGameText, L"현재 게임 상태 : 클리어!"); }
-	else if (g_isGame == OUT) { wsprintfW(g_isGameText, L"현재 게임 상태 : 타임아웃!"); }
+	else if (g_isGame == TIMEOUT) { wsprintfW(g_isGameText, L"현재 게임 상태 : 타임아웃!"); }
+}
+
+void ResetGame(HWND hWnd)
+{
+	// 1. 타이머 잠시 정지
+	g_timerState = STOP;
+
+	// 2. 변수 초기화
+	g_itemScore = 0;
+	g_playTime = 0;
+	g_isGame = START;
+	g_maze_clear = FALSE;
+
+	// 도착지 관련 변수도 초기화 (필요하다면)
+	g_isDest = FALSE;
+	g_destClear = FALSE;
+	g_openDest = FALSE;
+
+	// 3. 맵 재생성 (새로운 랜덤 맵)
+	SetMap();
+
+	// 4. 플레이어 위치 초기화 (SetMap에서 (1,1)에 CHAR를 두므로 거기에 맞춤)
+	g_me_x = 1;
+	g_me_y = 1;
+
+	// RECT 좌표 재계산
+	g_me.left = g_me_x * MAZE_BOX_SIZE;
+	g_me.top = g_me_y * MAZE_BOX_SIZE;
+	g_me.right = g_me.left + MAZE_BOX_SIZE;
+	g_me.bottom = g_me.top + MAZE_BOX_SIZE;
+
+	// 5. 타이머 다시 시작
+	g_timerState = START;
+
+	// 6. 화면 갱신 (배경까지 싹 지우고 다시 그림)
+	InvalidateRect(hWnd, NULL, TRUE);
 }
 
 DWORD WINAPI TimerProc(LPVOID lpParam)
@@ -479,11 +523,12 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 			Sleep(100);
 		}
 		
-		if (g_playTime >= 60)
+		if (g_playTime >= 10 && g_timerState != TIMEOUT)
 		{
+			g_timerState = TIMEOUT;
+			g_isGame = TIMEOUT;
+			GameText();
 			MessageBox(g_hWnd, L"시간 종료!", L"게임을 종료합니다", MB_OK);
-			g_timerState = OUT;
-			Sleep(500);
 		}
 
 	}
@@ -502,6 +547,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_hTimerThread = STOP;
 		wsprintfW(g_isGameText, L"현재 게임 상태 : 대기중");
 		g_hTimerThread = CreateThread(NULL, 0, TimerProc, hWnd, 0, NULL);
+		g_hStartButton = CreateWindow(L"BUTTON", L"게임 시작", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 120, 100, 30, hWnd, (HMENU)BT_GAMESTART, hInst, nullptr);
+		g_hResetButton = CreateWindow(L"BUTTON", L"리셋 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 160, 100, 30, hWnd, (HMENU)BT_GAMERESET, hInst, nullptr);
+		g_hPurseButton = CreateWindow(L"BUTTON", L"정지 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 200, 100, 30, hWnd, (HMENU)BT_GAMEPAUSE, hInst, nullptr);
+		
 	}
 	break;
 	/// [!]쓰레드 테스트
@@ -518,24 +567,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		switch (wParam)
 		{
-		case '1': g_isGame = START;
+		case '1':
 		{
+			if (g_timerState == TIMEOUT) break;
+			g_isGame = START;
 			GameText();
 			g_timerState = START;
 			MessageBox(g_hWnd, L"다시 플레이가 가능합니다!", L"플레이 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		case '2': g_isGame = STOP;
+		case '2':
 		{
+			g_isGame = STOP;
 			GameText();
 			g_timerState = STOP;
 			MessageBox(g_hWnd, L"이어서 하려면 1를 입력해주세요", L"정지 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		case '8': g_isGame = CLEAR;
+		case '8': 
 		{
+			g_isGame = CLEAR;
 			GameText();
 			g_playTime = 0; // 시간 0으로 리셋
 			g_timerState = CLEAR;
@@ -564,6 +617,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		// 메뉴 선택을 구문 분석합니다:
 		switch (wmId)
 		{
+		case BT_GAMESTART:
+			g_isGame = START;
+			g_timerState = START;
+			SetFocus(hWnd);
+			GameText();
+			InvalidateRect(hWnd, NULL, FALSE);
+			/// MessageBox(hWnd, L"클릭 되었습니다!", L"button", NULL);
+			break;
+		case BT_GAMERESET:
+			if (MessageBox(hWnd, L"게임을 리셋하시겠습니까?", L"알림", MB_OKCANCEL) == IDOK)
+			{
+				ResetGame(hWnd); // 초기화 함수 호출
+				GameText();      // 텍스트 업데이트
+				g_isGame = STOP;
+				g_timerState = STOP;
+			}
+			SetFocus(hWnd);
+			GameText();
+			break;
+		case BT_GAMEPAUSE:
+			g_isGame = STOP;
+			g_timerState = STOP;
+			SetFocus(hWnd);
+			GameText();
+			InvalidateRect(hWnd, NULL, FALSE);
+			/// MessageBox(hWnd, L"클릭 되었습니다!", L"button", NULL);
+			break;
 		case IDM_ABOUT:
 			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;
