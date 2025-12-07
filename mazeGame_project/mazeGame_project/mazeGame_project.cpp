@@ -4,7 +4,7 @@
 #include "framework.h"
 #include "mazeGame_project.h"
 
-#include "time.h"
+#include <time.h>
 
 #define MAX_LOADSTRING 100
 
@@ -117,16 +117,23 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 /// g_me = 캐릭터, g_maze_TF = 벽인지 아닌지 여부 확인
 RECT g_me;
 
+/// 아이템 선언 및 아이템 위치 생성
+RECT g_item;
+int g_item_rows, g_item_cols;
+
 /// x와 y좌표 전역변수화
 
 int g_me_x, g_me_y;
+
 
 /// 아이템의 좌표
 int g_itemRow, g_itemCol;
 int g_newItemRow, g_newItemCol;
 int g_itemScore;
 
+/// 0 : 벽/검정색 , 1 : 길/흰색, 3 : 출발, 4 : 아이템, 5 : 도착지점
 /// 맵 크기 키워서 테스트
+
 int g_maze[MAZE_ROWS][MAZE_COLS];
 
 int g_destX, g_destY;
@@ -145,9 +152,6 @@ BOOL g_maze_clear;
 int g_isGame;
 
 WCHAR g_isGameText[100];
-
-// 타이머 상태 상수 정의
-
 
 // 전역 변수
 volatile int g_timerState = STOP; // 현재 타이머 상태 (volatile 필수)
@@ -535,6 +539,7 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 	return 0;
 }
 
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	g_hWnd = hWnd;
@@ -542,6 +547,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 	{
+
 		SetMap();
 		g_isGame = STOP;
 		g_hTimerThread = STOP;
@@ -550,7 +556,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_hStartButton = CreateWindow(L"BUTTON", L"게임 시작", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 120, 100, 30, hWnd, (HMENU)BT_GAMESTART, hInst, nullptr);
 		g_hResetButton = CreateWindow(L"BUTTON", L"리셋 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 160, 100, 30, hWnd, (HMENU)BT_GAMERESET, hInst, nullptr);
 		g_hPurseButton = CreateWindow(L"BUTTON", L"정지 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 200, 100, 30, hWnd, (HMENU)BT_GAMEPAUSE, hInst, nullptr);
-		
 	}
 	break;
 	/// [!]쓰레드 테스트
@@ -595,6 +600,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			MessageBox(g_hWnd, L"게임을 클리어하였습니다!", L"클리어 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
+
 		break;
 		}
 		// [수정] 지역 변수(DS ds) 대신 동적 할당(new DS) 사용
@@ -657,8 +663,21 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 	case WM_PAINT:
 	{
+		/// 현재 생긴 이슈
+		/// 캐릭터가 이동했을때 잔상이 생김
+
+
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
+		// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
+		HBRUSH WallBrush = CreateSolidBrush(RGB(0, 0, 0));
+		HBRUSH RordBrush = CreateSolidBrush(RGB(255, 255, 255));
+		HBRUSH ItemBrush = CreateSolidBrush(RGB(105, 5, 35));
+		HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105,215));
+
+		HPEN NullPen = CreatePen(PS_NULL, 0, RGB(0, 0, 0));
+		HPEN OsPen = (HPEN)SelectObject(hdc, NullPen);
+		HBRUSH CurrentBrush = WallBrush; 
 
 		if (!g_maze_clear) GetMap(hdc);
 
