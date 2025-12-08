@@ -1,30 +1,42 @@
-﻿//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++에서 생성한 포함 파일입니다.
-// 다음에서 사용 mazeGame_project.rc
 
 #define IDS_APP_TITLE			103
+
+#define MAZE_ROWS 40
+#define MAZE_COLS 25
+#define MAZE_BOX_SIZE 30
+
+#define WALL 100
+#define ROAD 101
+#define CHAR 102
+#define ITEM 103
+#define DEST 104
+
+#define TARGET_SCORE 1
+#define TARGET_TIME 60
+
+#define START			 1
+#define STOP			 0
+#define CLEAR			 2
+#define TIMEOUT		 	 3
+
+#define BT_GAMESTART			1
+#define BT_GAMERESET			2
+#define BT_GAMEPAUSE			3
 
 #define IDR_MAINFRAME			128
 #define IDD_MAZEGAMEPROJECT_DIALOG	102
 #define IDD_ABOUTBOX			103
 #define IDM_ABOUT				104
 #define IDM_EXIT				105
+
+#define IDM_GAMESTART			201
+#define IDM_GAMEPAUSE			202
+#define IDM_GAMESTOP			203
+
 #define IDI_MAZEGAMEPROJECT			107
 #define IDI_SMALL				108
 #define IDC_MAZEGAMEPROJECT			109
 #define IDC_MYICON				2
 #ifndef IDC_STATIC
 #define IDC_STATIC				-1
-#endif
-// 다음은 새 개체에 사용할 기본값입니다.
-//
-#ifdef APSTUDIO_INVOKED
-#ifndef APSTUDIO_READONLY_SYMBOLS
-
-#define _APS_NO_MFC					130
-#define _APS_NEXT_RESOURCE_VALUE	129
-#define _APS_NEXT_COMMAND_VALUE		32771
-#define _APS_NEXT_CONTROL_VALUE		1000
-#define _APS_NEXT_SYMED_VALUE		110
-#endif
 #endif
