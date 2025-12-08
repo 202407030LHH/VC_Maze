@@ -11,7 +11,7 @@
 #define ITEM 103
 #define DEST 104
 
-#define TARGET_SCORE 1
+#define TARGET_SCORE 5
 #define TARGET_TIME 60
 
 #define START			 1

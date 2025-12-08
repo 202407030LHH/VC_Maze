@@ -152,6 +152,7 @@ void GetMap(HDC hdc)
 			else if (g_maze[i][j] == WALL) CurrentBrush = WallBrush;
 			else if (g_maze[i][j] == CHAR) CurrentBrush = CharBrush;
 			else if (g_maze[i][j] == ITEM) CurrentBrush = ItemBrush;
+			else if (g_maze[i][j] == DEST) CurrentBrush = DestBrush;
 			else CurrentBrush = WallBrush;
 
 			SelectObject(hdc, CurrentBrush);
@@ -263,7 +264,6 @@ void SetMap()
 		g_destX = rand() % MAZE_ROWS;
 		g_destY = rand() % MAZE_COLS;
 	}
-	g_maze[g_destX][g_destY] = DEST;
 
 }
 
@@ -367,19 +367,8 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 			HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105, 215));  // 도착점
 			SelectObject(hdc, DestBrush);
 
-			/// 도착지 설정
-			g_destX = rand() % MAZE_ROWS;
-			g_destY = rand() % MAZE_COLS;
-
-			while (g_maze[g_destX][g_destY] == WALL)
-			{
-				g_destX = rand() % MAZE_ROWS;
-				g_destY = rand() % MAZE_COLS;
-			}
 			g_maze[g_destX][g_destY] = DEST;
-			int destX = g_destX * MAZE_BOX_SIZE;
-			int destY = g_destY * MAZE_BOX_SIZE;
-			Rectangle(hdc, destX, destY, destX + MAZE_BOX_SIZE, destY + MAZE_BOX_SIZE);
+
 			g_destClear = TRUE;
 			DeleteObject(DestBrush);
 		}
@@ -469,7 +458,7 @@ void ResetGame(HWND hWnd)
 	g_me.bottom = g_me.top + MAZE_BOX_SIZE;
 
 	// 5. 타이머 다시 시작
-	g_timerState = START;
+	g_timerState = STOP;
 
 	// 6. 화면 갱신 (배경까지 싹 지우고 다시 그림)
 	InvalidateRect(hWnd, NULL, TRUE);
@@ -513,23 +502,18 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 void GameHelp(HDC hdc)
 {
 	if (g_helpButton) {
-		RECT hr{ 100, 100, 1200, 500 };
-		HBRUSH helpBg = CreateSolidBrush(RGB(0, 0, 0));
-		FillRect(hdc, &hr, helpBg);
-		DeleteObject(helpBg);
-
 		SetTextColor(hdc, RGB(255, 255, 255));
 
-		int x = 150;
-		int y = 150;
+		int x = 1230;
+		int y = 300;
 
 		const wchar_t* h1 = L"[도움말]";
-		const wchar_t* h2 = L"방향키 : 뱀 이동";
-		const wchar_t* h3 = L"SPACE  : 게임 시작";
-		const wchar_t* h4 = L"P      : 일시정지 / 해제";
-		const wchar_t* h5 = L"R      : 즉시 재시작";
-		const wchar_t* h6 = L"H      : 이 도움말 열기/닫기";
-		const wchar_t* h7 = L"ESC    : 게임 종료";
+		const wchar_t* h2 = L"방향키 : 캐릭터 이동";
+		const wchar_t* h3 = L"종료 조건 : 도착지 도착";
+		const wchar_t* h4 = L"도착지 활성화 조건 : 5개 이상 획득";
+		const wchar_t* h5 = L"도착지 : 파란색";
+		const wchar_t* h6 = L"아이템 : 노란색";
+		const wchar_t* h7 = L"타이머 : 60초";
 
 		TextOutW(hdc, x, y, h1, lstrlenW(h1)); y += 24;
 		TextOutW(hdc, x, y, h2, lstrlenW(h2)); y += 20;
@@ -551,11 +535,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		SetMap();
 		g_isGame = STOP;
 		g_hTimerThread = STOP;
+		g_helpButton = TRUE;
 		wsprintfW(g_isGameText, L"현재 게임 상태 : 대기중");
 		g_hTimerThread = CreateThread(NULL, 0, TimerProc, hWnd, 0, NULL);
-		g_hStartButton = CreateWindow(L"BUTTON", L"게임 시작", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 120, 100, 30, hWnd, (HMENU)BT_GAMESTART, hInst, nullptr);
-		g_hResetButton = CreateWindow(L"BUTTON", L"리셋 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 160, 100, 30, hWnd, (HMENU)BT_GAMERESET, hInst, nullptr);
-		g_hPurseButton = CreateWindow(L"BUTTON", L"정지 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 200, 100, 30, hWnd, (HMENU)BT_GAMEPAUSE, hInst, nullptr);
+		g_hStartButton = CreateWindow(L"BUTTON", L"게임 시작", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 160, 100, 30, hWnd, (HMENU)BT_GAMESTART, hInst, nullptr);
+		g_hResetButton = CreateWindow(L"BUTTON", L"리셋 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 200, 100, 30, hWnd, (HMENU)BT_GAMERESET, hInst, nullptr);
+		g_hPurseButton = CreateWindow(L"BUTTON", L"정지 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 240, 100, 30, hWnd, (HMENU)BT_GAMEPAUSE, hInst, nullptr);
 	}
 	break;
 
@@ -592,17 +577,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		}
-		/*
-		case 'H':
-		case 'h':
-		{
-			g_helpButton = !g_helpButton;
 
-			InvalidateRect(hWnd, NULL, TRUE);
-		}
-		break;
-		*/
+	case 'H':
+	case 'h':
+	{
+		g_helpButton = !g_helpButton;
+
+		InvalidateRect(hWnd, NULL, TRUE);
+	}
+	break;
+	}
+		
 		// [수정] 지역 변수(DS ds) 대신 동적 할당(new DS) 사용
 		PDS pData = new DS;
 		pData->m_hWnd = hWnd;
