@@ -11,7 +11,7 @@
 #define ITEM 103
 #define DEST 104
 
-#define TARGET_SCORE 5
+#define TARGET_SCORE 1
 #define TARGET_TIME 60
 
 #define START			 1
@@ -19,9 +19,9 @@
 #define CLEAR			 2
 #define TIMEOUT		 	 3
 
-#define BT_GAMESTART			600
-#define BT_GAMERESET			601
-#define BT_GAMEPAUSE			602
+#define BT_GAMESTART			1
+#define BT_GAMERESET			2
+#define BT_GAMEPAUSE			3
 
 #define IDR_MAINFRAME			128
 #define IDD_MAZEGAMEPROJECT_DIALOG	102
