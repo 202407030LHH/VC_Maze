@@ -4,7 +4,7 @@
 #include "framework.h"
 #include "mazeGame_project.h"
 
-#include "time.h"
+#include <time.h>
 
 #define MAX_LOADSTRING 100
 
@@ -115,7 +115,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	return TRUE;
 }
 
-
 //
 //  함수: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -128,12 +127,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 void GetMap(HDC hdc)
 {
-
 	HBRUSH WallBrush = CreateSolidBrush(RGB(180, 180, 180));      // 검정색 (벽)
 	HBRUSH RoadBrush = CreateSolidBrush(RGB(40, 40, 40)); // 흰색 (길)
 	HBRUSH ItemBrush = CreateSolidBrush(RGB(255, 215, 0));   // 아이템: 금색
 	HBRUSH CharBrush = CreateSolidBrush(RGB(0, 255, 0));     // 캐릭터: 형광 연두색
-	HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105, 215));
+	HBRUSH DestBrush = CreateSolidBrush(RGB(9, 105, 215));  // 도착점
 
 	// 펜을 NULL_PEN으로 설정하고 나중에 원래 펜 복원 (외곽선 제거)
 	HPEN NullPen = CreatePen(PS_NULL, 0, RGB(0, 0, 0));
@@ -162,31 +160,18 @@ void GetMap(HDC hdc)
 		}
 	}
 
-	// 1. 글자가 출력될 위치 계산 (TextOut 좌표와 동일하게)
-	int textX = MAZE_ROWS * MAZE_BOX_SIZE + 30;
-	int textY = 30;
+	/// 도착지 활성화
+	if (g_itemScore >= TARGET_SCORE) { g_openDest = TRUE; }
+	if (g_openDest && g_destClear == FALSE)
+	{
+		CurrentBrush = DestBrush;
+		SelectObject(hdc, CurrentBrush);
+		int destX = g_destX * MAZE_BOX_SIZE;
+		int destY = g_destY * MAZE_BOX_SIZE;
+		Rectangle(hdc, destX, destY, destX + MAZE_BOX_SIZE, destY + MAZE_BOX_SIZE);
+		g_destClear = TRUE;
+	}
 
-	// 2. 지울 영역(사각형) 설정 (글자 길이만큼 넉넉하게 잡음)
-	RECT textRect = { textX, textY, textX + 300, textY + 100 };
-
-	// 3. 검은색 브러시로 해당 영역을 칠해서 '지우개' 역할 수행
-	FillRect(hdc, &textRect, (HBRUSH)GetStockObject(BLACK_BRUSH));
-
-	SetTextColor(hdc, RGB(255, 255, 255));
-	SetBkMode(hdc, TRANSPARENT);
-
-	/// 타이머 메세지 출력
-	WCHAR timeText[50];
-	wsprintf(timeText, L"Time : %d sec", g_playTime);
-	TextOut(hdc, textX, textY, timeText, wcslen(timeText));
-
-	/// 점수 메세지 출력
-	WCHAR scoreText[30];
-	wsprintfW(scoreText, L"획득한 아이템 : %d", g_itemScore);
-	TextOut(hdc, textX, textY + 30, scoreText, wcslen(scoreText));
-
-	/// 게임 상태 메세지 출력 
-	TextOut(hdc, textX, textY + 60, g_isGameText, wcslen(g_isGameText));
 
 	SelectObject(hdc, hOldBrush);
 	SelectObject(hdc, hOldPen);
@@ -196,10 +181,8 @@ void GetMap(HDC hdc)
 	DeleteObject(RoadBrush);
 	DeleteObject(ItemBrush);
 	DeleteObject(CharBrush);
+	DeleteObject(DestBrush);
 	DeleteObject(NullPen);
-	ReleaseDC(g_hWnd, hdc);
-
-	g_maze_clear = TRUE;
 }
 void SetMap()
 {
@@ -352,7 +335,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 	{
 		bool isItem = (g_maze[nx][ny] == ITEM);
 		bool isDest = (g_maze[nx][ny] == DEST);
-
+		
 		g_maze[g_me_x][g_me_y] = ROAD; // 기존 위치 지우기
 
 		int roadX = g_me_x * MAZE_BOX_SIZE;
@@ -400,7 +383,6 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 
-		/// 도착지 활성화
 		if (g_itemScore >= TARGET_SCORE) { g_openDest = TRUE; }
 		if (g_openDest && g_destClear == FALSE)
 		{
@@ -423,7 +405,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 			GameText();
 		}
 
-		SelectObject(hdc, RoadBrush);
+;		SelectObject(hdc, RoadBrush);
 		DeleteObject(CharBrush);
 		DeleteObject(RoadBrush);
 		DeleteObject(ItemBrush);
@@ -467,7 +449,34 @@ void GameText()
 	/// 게임 상태 메세지 출력 
 	TextOut(hdc, textX, textY + 60, g_isGameText, wcslen(g_isGameText));
 }
+void GetGameText(HDC hdc)
+{
+	// 1. 글자가 출력될 위치 계산 (TextOut 좌표와 동일하게)
+	int textX = MAZE_ROWS * MAZE_BOX_SIZE + 30;
+	int textY = 30;
 
+	// 2. 지울 영역(사각형) 설정 (글자 길이만큼 넉넉하게 잡음)
+	RECT textRect = { textX, textY, textX + 300, textY + 100 };
+
+	// 3. 검은색 브러시로 해당 영역을 칠해서 '지우개' 역할 수행
+	FillRect(hdc, &textRect, (HBRUSH)GetStockObject(BLACK_BRUSH));
+
+	SetTextColor(hdc, RGB(255, 255, 255));
+	SetBkMode(hdc, TRANSPARENT);
+
+	/// 타이머 메세지 출력
+	WCHAR timeText[50];
+	wsprintf(timeText, L"Time : %d sec", g_playTime);
+	TextOut(hdc, textX, textY, timeText, wcslen(timeText));
+
+	/// 점수 메세지 출력
+	WCHAR scoreText[30];
+	wsprintfW(scoreText, L"획득한 아이템 : %d", g_itemScore);
+	TextOut(hdc, textX, textY + 30, scoreText, wcslen(scoreText));
+
+	/// 게임 상태 메세지 출력 
+	TextOut(hdc, textX, textY + 60, g_isGameText, wcslen(g_isGameText));
+}
 void ResetGame(HWND hWnd)
 {
 	srand(time(NULL));
@@ -477,6 +486,7 @@ void ResetGame(HWND hWnd)
 	// 2. 변수 초기화
 	g_itemScore = 0;
 	g_playTime = 0;
+
 	g_isGame = STOP;
 	g_maze_clear = FALSE;
 
@@ -540,7 +550,6 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 			Sleep(100);
 		}
-		
 		if (g_playTime >= TARGET_TIME && g_timerState != TIMEOUT)
 		{
 			g_timerState = TIMEOUT;
@@ -551,6 +560,37 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 
 	}
 	return 0;
+}
+
+void GameHelp(HDC hdc)
+{
+	if (g_helpButton) {
+		RECT hr{ 100, 100, 1200, 500 };
+		HBRUSH helpBg = CreateSolidBrush(RGB(0, 0, 0));
+		FillRect(hdc, &hr, helpBg);
+		DeleteObject(helpBg);
+
+		SetTextColor(hdc, RGB(255, 255, 255));
+
+		int x = 150;
+		int y = 150;
+
+		const wchar_t* h1 = L"[도움말]";
+		const wchar_t* h2 = L"방향키 : 뱀 이동";
+		const wchar_t* h3 = L"SPACE  : 게임 시작";
+		const wchar_t* h4 = L"P      : 일시정지 / 해제";
+		const wchar_t* h5 = L"R      : 즉시 재시작";
+		const wchar_t* h6 = L"H      : 이 도움말 열기/닫기";
+		const wchar_t* h7 = L"ESC    : 게임 종료";
+
+		TextOutW(hdc, x, y, h1, lstrlenW(h1)); y += 24;
+		TextOutW(hdc, x, y, h2, lstrlenW(h2)); y += 20;
+		TextOutW(hdc, x, y, h3, lstrlenW(h3)); y += 20;
+		TextOutW(hdc, x, y, h4, lstrlenW(h4)); y += 20;
+		TextOutW(hdc, x, y, h5, lstrlenW(h5)); y += 20;
+		TextOutW(hdc, x, y, h6, lstrlenW(h6)); y += 20;
+		TextOutW(hdc, x, y, h7, lstrlenW(h7));
+	}
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -569,7 +609,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		g_hStartButton = CreateWindow(L"BUTTON", L"게임 시작", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 150, 100, 30, hWnd, (HMENU)BT_GAMESTART, hInst, nullptr);
 		g_hResetButton = CreateWindow(L"BUTTON", L"리셋 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 190, 100, 30, hWnd, (HMENU)BT_GAMERESET, hInst, nullptr);
 		g_hPurseButton = CreateWindow(L"BUTTON", L"정지 버튼", WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, MAZE_ROWS * MAZE_BOX_SIZE + 30, 230, 100, 30, hWnd, (HMENU)BT_GAMEPAUSE, hInst, nullptr);
-		
+
 	}
 	break;
 
@@ -580,8 +620,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case '1':
 		{
 			if (g_timerState == TIMEOUT) break;
-			g_isGame = START;
 			GameText();
+			g_isGame = START;
 			g_timerState = START;
 			MessageBox(g_hWnd, L"다시 플레이가 가능합니다!", L"플레이 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
@@ -589,17 +629,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 		case '2':
 		{
-			g_isGame = STOP;
 			GameText();
+			g_isGame = STOP;
 			g_timerState = STOP;
 			MessageBox(g_hWnd, L"이어서 하려면 1를 입력해주세요", L"정지 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		case '8': 
+		case '8':
 		{
-			g_isGame = CLEAR;
 			GameText();
+			g_isGame = CLEAR;
 			g_playTime = 0; // 시간 0으로 리셋
 			g_timerState = CLEAR;
 			MessageBox(g_hWnd, L"게임을 클리어하였습니다!", L"클리어 상태로 돌입합니다.", MB_OK);
@@ -615,6 +655,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		break;
 		}
+		/*
+		case 'H':
+		case 'h':
+		{
+			g_helpButton = !g_helpButton;
+
+			InvalidateRect(hWnd, NULL, TRUE);
+		}
+		break;
+		*/
 		// [수정] 지역 변수(DS ds) 대신 동적 할당(new DS) 사용
 		PDS pData = new DS;
 		pData->m_hWnd = hWnd;
@@ -627,8 +677,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		// 핸들은 닫아주는 것이 좋습니다 (쓰레드 종료와 무관)
 		if (g_hThread) CloseHandle(g_hThread);
 
+
+		break;
 	}
-	break;
 	case WM_COMMAND:
 	{
 		int wmId = LOWORD(wParam);
@@ -675,19 +726,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	break;
 	case WM_PAINT:
 	{
+	
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
+		// TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
 
 		GetMap(hdc);
 		GameText();
 		GameHelp(hdc);
 
 		EndPaint(hWnd, &ps);
-
 	}
 	break;
 	case WM_DESTROY:
-		
+
 		if (g_hTimerThread)
 		{
 			CloseHandle(g_hTimerThread);
@@ -698,24 +750,24 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}
 	return 0;
-}
-
-// 정보 대화 상자의 메시지 처리기입니다.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	UNREFERENCED_PARAMETER(lParam);
-	switch (message)
-	{
-	case WM_INITDIALOG:
-		return (INT_PTR)TRUE;
-
-	case WM_COMMAND:
-		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-		{
-			EndDialog(hDlg, LOWORD(wParam));
-			return (INT_PTR)TRUE;
-		}
-		break;
 	}
-	return (INT_PTR)FALSE;
-}
+
+	// 정보 대화 상자의 메시지 처리기입니다.
+	INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		UNREFERENCED_PARAMETER(lParam);
+		switch (message)
+		{
+		case WM_INITDIALOG:
+			return (INT_PTR)TRUE;
+
+		case WM_COMMAND:
+			if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+			{
+				EndDialog(hDlg, LOWORD(wParam));
+				return (INT_PTR)TRUE;
+			}
+			break;
+		}
+		return (INT_PTR)FALSE;
+	}
