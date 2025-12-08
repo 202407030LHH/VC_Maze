@@ -15,8 +15,6 @@ int g_itemRow, g_itemCol;
 int g_newItemRow, g_newItemCol;
 int g_itemScore;
 
-/// 0 : 벽/검정색 , 1 : 길/흰색, 3 : 출발, 4 : 아이템, 5 : 도착지점
-/// 맵 크기 키워서 테스트
 
 int g_maze[MAZE_ROWS][MAZE_COLS];
 
@@ -25,10 +23,17 @@ BOOL g_isDest;
 BOOL g_destClear;
 BOOL g_openDest;
 
+HWND g_hWnd;
+BOOL g_maze_clear;
+
+BOOL g_helpButton;
+
 int g_isGame;
 
 WCHAR g_isGameText[100];
 
+
+HANDLE g_hThread;
 // 전역 변수
 volatile int g_timerState = STOP; // 현재 타이머 상태 (volatile 필수)
 volatile int g_playTime = 0;            // 게임 시간 (초 단위)
