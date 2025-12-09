@@ -24,7 +24,7 @@ int g_destX, g_destY;
 BOOL g_isDest;
 BOOL g_destClear;
 BOOL g_openDest;
-
+BOOL g_isEatItem;
 int g_isGame;
 
 WCHAR g_isGameText[100];

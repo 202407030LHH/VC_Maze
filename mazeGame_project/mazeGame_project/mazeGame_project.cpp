@@ -271,6 +271,8 @@ void SetMap()
 
 HANDLE g_hThread;
 
+int g_row, g_col;
+
 typedef struct data_set
 {
 	HWND m_hWnd;
@@ -295,11 +297,13 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 
 	int nx = g_me_x;
 	int ny = g_me_y;
+
 	int itemScore = g_itemScore;
 	/// 캐릭터 구성
 	HBRUSH CharBrush = CreateSolidBrush(RGB(0, 255, 0));     // 캐릭터: 형광 연두색
 	HBRUSH RoadBrush = CreateSolidBrush(RGB(40, 40, 40)); // 흰색 (길)
 	HBRUSH ItemBrush = CreateSolidBrush(RGB(255, 215, 0));   // 아이템: 금색
+	HBRUSH WallBrush = CreateSolidBrush(RGB(180, 180, 180));      // 검정색 (벽)
 
 	switch (key)
 	{
@@ -314,12 +318,22 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 		bool isItem = (g_maze[nx][ny] == ITEM);
 		bool isDest = (g_maze[nx][ny] == DEST);
 		
-		g_maze[g_me_x][g_me_y] = ROAD; // 기존 위치 지우기
+		int oldX = g_me_x * MAZE_BOX_SIZE;
+		int oldY = g_me_y * MAZE_BOX_SIZE;
 
-		int roadX = g_me_x * MAZE_BOX_SIZE;
-		int roadY = g_me_y * MAZE_BOX_SIZE;
-		SelectObject(hdc, RoadBrush);
-		Rectangle(hdc, roadX - 1, roadY - 1, roadX + MAZE_BOX_SIZE, roadY + MAZE_BOX_SIZE);
+		if (g_isEatItem)
+		{
+			g_maze[g_me_x][g_me_y] = WALL; 
+			SelectObject(hdc, WallBrush); 
+			Rectangle(hdc, oldX, oldY, oldX + MAZE_BOX_SIZE, oldY + MAZE_BOX_SIZE);
+			g_isEatItem = FALSE; 
+		}
+		else
+		{
+			g_maze[g_me_x][g_me_y] = ROAD;
+			SelectObject(hdc, RoadBrush);
+			Rectangle(hdc, oldX, oldY, oldX + MAZE_BOX_SIZE, oldY + MAZE_BOX_SIZE);
+		}
 
 		// 좌표 및 인덱스 업데이트
 		g_me_x = nx;
@@ -333,6 +347,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 
 		SelectObject(hdc, CharBrush);
 		g_maze[g_me_x][g_me_y] = CHAR; // 새 위치에 캐릭터 표시
+		
 		Rectangle(hdc, g_me.left, g_me.top, g_me.right, g_me.bottom);
 
 		if (isItem)
@@ -346,18 +361,20 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 				nextItemCol = rand() % MAZE_COLS;
 			}
 
+			g_maze[nextItemRow][nextItemCol] = ITEM;
 
+			/// 박스를 그리기 위한 좌표 저장
 			int nxItemX = nextItemRow * MAZE_BOX_SIZE;
 			int nxItemY = nextItemCol * MAZE_BOX_SIZE;
 
-			g_maze[nextItemRow][nextItemCol] = ITEM;
 			SelectObject(hdc, ItemBrush);
 			Rectangle(hdc, nxItemX, nxItemY, nxItemX + MAZE_BOX_SIZE, nxItemY + MAZE_BOX_SIZE);
 
-			g_itemRow = nextItemRow;
-			g_itemCol = nextItemCol;
+			g_newItemRow = nextItemRow;
+			g_newItemCol = nextItemCol;
 
 			g_itemScore++;
+			g_isEatItem = TRUE;
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 
@@ -387,6 +404,7 @@ DWORD WINAPI MoveChar(LPVOID ThWnd)
 ;		SelectObject(hdc, RoadBrush);
 		DeleteObject(CharBrush);
 		DeleteObject(RoadBrush);
+		DeleteObject(WallBrush);
 		DeleteObject(ItemBrush);
 	}
 
@@ -478,8 +496,11 @@ DWORD WINAPI TimerProc(LPVOID lpParam)
 		if (g_timerState == START)
 		{
 			Sleep(1000); // 1초 대기
-			g_playTime++; // 시간 증가
-			InvalidateRect(hWnd, NULL, FALSE);
+			if (g_timerState == START)
+			{
+				g_playTime++; // 3. 여전히 START 상태일 때만 시간 증가
+				InvalidateRect(hWnd, NULL, FALSE);
+			}
 		}
 		else
 		{
@@ -548,36 +569,40 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	{
 		switch (wParam)
 		{
-		case '1':
+		case 'c':
+		case 'C':
+		{
+			g_isGame = CLEAR;
+			g_timerState = CLEAR;
+			GameText();
+			MessageBox(g_hWnd, L"게임을 클리어하였습니다!", L"클리어 상태로 돌입합니다.", MB_OK);
+			g_playTime = 0; // 시간 0으로 리셋
+			CloseHandle(g_hTimerThread);
+			InvalidateRect(hWnd, NULL, FALSE);
+		}
+		break;
+		case 's':
+		case 'S':
 		{
 			if (g_timerState == TIMEOUT) break;
-			GameText();
 			g_isGame = START;
 			g_timerState = START;
+			GameText();
 			MessageBox(g_hWnd, L"다시 플레이가 가능합니다!", L"플레이 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		case '2':
+
+		case 'p':
+		case 'P':
 		{
-			GameText();
 			g_isGame = STOP;
 			g_timerState = STOP;
+			GameText();
 			MessageBox(g_hWnd, L"이어서 하려면 1를 입력해주세요", L"정지 상태로 돌입합니다.", MB_OK);
 			InvalidateRect(hWnd, NULL, FALSE);
 		}
 		break;
-		case '8':
-		{
-			GameText();
-			g_isGame = CLEAR;
-			g_playTime = 0; // 시간 0으로 리셋
-			g_timerState = CLEAR;
-			MessageBox(g_hWnd, L"게임을 클리어하였습니다!", L"클리어 상태로 돌입합니다.", MB_OK);
-			InvalidateRect(hWnd, NULL, FALSE);
-		}
-		break;
-
 	case 'H':
 	case 'h':
 	{
@@ -587,7 +612,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	}
 	break;
 	}
-		
+		/// 아이템을 먹으면 길이 아니라 벽으로 변경
+
 		// [수정] 지역 변수(DS ds) 대신 동적 할당(new DS) 사용
 		PDS pData = new DS;
 		pData->m_hWnd = hWnd;
@@ -617,6 +643,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, FALSE);
 			/// MessageBox(hWnd, L"클릭 되었습니다!", L"button", NULL);
 			break;
+
 		case BT_GAMERESET:
 			if (MessageBox(hWnd, L"게임을 리셋하시겠습니까?", L"알림", MB_OKCANCEL) == IDOK)
 			{
@@ -628,6 +655,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			SetFocus(hWnd);
 			GameText();
 			break;
+
 		case BT_GAMEPAUSE:
 			g_isGame = STOP;
 			g_timerState = STOP;
